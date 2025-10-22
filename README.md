@@ -78,21 +78,6 @@ npm run build
 npm start
 ```
 
-### Deployment
-
-TipJar is a full-stack Node.js application. For production deployment, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
-
-**Recommended platforms:**
-- ✅ **Render.com** - Perfect for Node.js apps (FREE tier)
-- ✅ **Railway.app** - Easy GitHub integration (FREE tier)
-- ⚠️ **Netlify** - Requires refactoring to serverless functions
-
-**Quick deploy to Render:**
-1. Go to https://render.com
-2. Connect your GitHub repository
-3. Add environment variables (see DEPLOYMENT_GUIDE.md)
-4. Deploy!
-
 ## 📖 How to Use
 
 ### Step 1: Upload Report

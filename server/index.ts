@@ -5,20 +5,14 @@ import { setupVite, serveStatic, log } from "./vite";
 
 // Check for required environment variables in production
 if (process.env.NODE_ENV === "production") {
-  // SESSION_SECRET: Auto-generate if not provided
-  if (!process.env.SESSION_SECRET) {
-    console.log("⚠️  SESSION_SECRET not set, generating random secret (not recommended for production)");
-    process.env.SESSION_SECRET = require('crypto').randomBytes(32).toString('hex');
-  }
+  const requiredEnvVars = ["SESSION_SECRET", "GEMINI_API_KEY"];
+  const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
   
-  // Check if OCR is configured
-  const hasAzure = process.env.AZURE_DI_KEY || process.env.AZURE_CV_KEY;
-  if (!hasAzure) {
-    console.log("⚠️  No Azure OCR credentials found. Using Tesseract (lower accuracy).");
-    console.log("   For best results, set AZURE_DI_KEY and AZURE_DI_ENDPOINT");
+  if (missingEnvVars.length > 0) {
+    console.error(`Error: Missing required environment variables: ${missingEnvVars.join(", ")}`);
+    console.error("Please set these variables in your deployment configuration.");
+    process.exit(1);
   }
-  
-  console.log("✅ Environment check passed");
 }
 
 const app = express();
