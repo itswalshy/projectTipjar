@@ -4,13 +4,26 @@
  * @returns Formatted text with each partner on a new line
  */
 export function formatOCRResult(text: string): string {
-  // If the text already contains line breaks, assume it's already formatted by Gemini API
+  // If the text already contains line breaks, clean and format
   if (text.includes('\n')) {
-    // Just clean each line
-    return text.split('\n')
+    // Clean each line and remove empty lines
+    const lines = text.split('\n')
       .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .join('\n');
+      .filter(line => line.length > 0);
+    
+    // Try to identify partner data lines and format them nicely
+    const formattedLines = lines.map(line => {
+      // If line looks like partner data, try to extract and reformat
+      const partnerMatch = line.match(/([A-Za-z\s,\.'-]+?)\s+(?:US\d+\s+)?(\d+\.?\d*)/);
+      if (partnerMatch) {
+        const name = partnerMatch[1].trim();
+        const hours = partnerMatch[2];
+        return `${name}: ${hours}`;
+      }
+      return line;
+    });
+    
+    return formattedLines.join('\n');
   }
   
   // For single-line text, try to extract and format partners

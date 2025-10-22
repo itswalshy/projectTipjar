@@ -2,8 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
-import { analyzeImage } from "./api/gemini";
-import { extractPartnerHours, formatOCRResult } from "../client/src/lib/formatUtils";
+import { analyzeImageWithService } from "./lib/ocrService";
+import { formatOCRResult } from "../client/src/lib/formatUtils";
 import { calculatePayout } from "../client/src/lib/utils";
 import { roundAndCalculateBills } from "../client/src/lib/billCalc";
 import { partnerHoursSchema } from "@shared/schema";
@@ -26,29 +26,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No image file provided" });
       }
       
-      // Convert image buffer to base64
-      const imageBase64 = req.file.buffer.toString("base64");
+      // Use OCR service (Azure primary, Tesseract fallback)
+      const result = await analyzeImageWithService(req.file.buffer);
       
-      // Use Gemini API to analyze the image
-      const result = await analyzeImage(imageBase64);
-      
-      if (!result.text) {
+      if (!result.text || !result.partnerData || result.partnerData.length === 0) {
         // Return a specific error message from the API if available
         return res.status(500).json({ 
-          error: result.error || "Failed to extract text from image",
+          error: result.error || "Failed to extract partner data from image",
           suggestManualEntry: true
         });
       }
-      
-      // Parse extracted text to get partner hours
-      const partnerHours = extractPartnerHours(result.text);
       
       // Format the extracted text for display
       const formattedText = formatOCRResult(result.text);
       
       res.json({
         extractedText: formattedText,
-        partnerHours
+        partnerHours: result.partnerData,
+        confidence: result.confidence,
+        engine: result.engine // Show which OCR engine was used
       });
     } catch (error) {
       console.error("OCR processing error:", error);
@@ -72,7 +68,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Calculate payout for each partner
-      const partnerPayouts = partnerHours.map(partner => {
+      const partnerPayouts = partnerHours.map((partner: { name: string; hours: number }) => {
         const payout = calculatePayout(partner.hours, hourlyRate);
         const { rounded, billBreakdown } = roundAndCalculateBills(payout);
         
