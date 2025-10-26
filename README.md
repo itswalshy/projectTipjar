@@ -8,36 +8,13 @@ As a barista at Starbucks, handling weekly cash tips is time-consuming and often
 
 ## ✨ Features
 
-- **📸 Photo-to-Data** - Upload a photo of your Tip Distribution Report
-- **🔍 OCR Processing** - Automatically extracts partner names and hours
-- **💰 Smart Distribution** - Calculates fair payouts based on hours worked
-- **💵 Bill Optimization** - Provides exact bill breakdown ($100, $50, $20, $10, $5, $1)
-- **📊 Distribution History** - Track past tip distributions
-- **✏️ Manual Entry** - Fallback option if OCR fails
-- **🔒 Privacy First** - All data processing happens on your server
-
-## 🆕 Multi-Engine OCR System (v3.0 - Document Intelligence)
-
-TipJar now uses **Azure AI Document Intelligence** for superior table extraction:
-
-### OCR Engines
-
-**Azure AI Document Intelligence (Recommended)** ⭐
-- ✅ **Designed for Tables** - Purpose-built for structured documents
-- ✅ **95-98% Accuracy** - Highest accuracy on Starbucks reports
-- ✅ **Starbucks-Compatible** - Uses Azure (same as Starbucks POS)
-- ✅ **FREE Tier** - 500 pages/month (perfect for stores)
-- ✅ **Privacy Compliant** - No AI training on your data
-- ✅ **Fast** - 1-3 second processing
-- ✅ **Table-Aware** - Understands row/column structure
-
-**Tesseract OCR (Fallback)**
-- ✅ **100% Free** - No API costs ever
-- ✅ **Works Offline** - No internet needed
-- ✅ **Privacy First** - All processing on your server
-- ⚠️ **Lower Accuracy** - 70-85% on phone photos
-
-See [AZURE_DOCUMENT_INTELLIGENCE.md](AZURE_DOCUMENT_INTELLIGENCE.md) for Azure setup or [OCR_IMPLEMENTATION.md](OCR_IMPLEMENTATION.md) for technical details.
+- **📸 Photo-to-Data** – Upload a photo of your Tip Distribution Report directly in the browser.
+- **🔍 On-Device OCR** – Tesseract.js runs locally to extract partner names and hours (no server required).
+- **💰 Smart Distribution** – Calculates fair payouts based on hours worked.
+- **💵 Bill Optimization** – Provides exact bill breakdown ($20, $10, $5, $1) so you know what to pull from the till.
+- **📊 Distribution History** – Previous calculations are saved to your browser using `localStorage`.
+- **✏️ Manual Entry** – Fallback option if OCR results need correction.
+- **🔒 Privacy First** – Images and partner data never leave the device; everything happens in your browser session.
 
 ## 🚀 Quick Start
 
@@ -54,19 +31,13 @@ git clone <your-repo-url>
 cd projectTipjar
 
 # Install dependencies
-npm install --legacy-peer-deps
+npm install
 
-# Configure environment (optional - see env.example)
-# For best results, set up Azure Document Intelligence (FREE tier)
-# See AZURE_DOCUMENT_INTELLIGENCE.md for instructions
-
-# Start development server
+# Start the Vite dev server
 npm run dev
 ```
 
-The application will be available at `http://localhost:5000`
-
-**Note:** TipJar works out of the box with Tesseract OCR (no configuration needed). For 95-98% accuracy, set up Azure Document Intelligence (see [AZURE_DOCUMENT_INTELLIGENCE.md](AZURE_DOCUMENT_INTELLIGENCE.md)).
+The application will be available at `http://localhost:5173`.
 
 ### Production Build
 
@@ -74,24 +45,21 @@ The application will be available at `http://localhost:5000`
 # Build for production
 npm run build
 
-# Start production server
-npm start
+# Preview the build locally
+npm run preview
 ```
 
 ### Deployment
 
-TipJar is a full-stack Node.js application. For production deployment, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
+This repository ships with `.github/workflows/deploy.yml`, a GitHub Actions workflow that builds the Vite app and publishes it to GitHub Pages.
 
-**Recommended platforms:**
-- ✅ **Render.com** - Perfect for Node.js apps (FREE tier)
-- ✅ **Railway.app** - Easy GitHub integration (FREE tier)
-- ⚠️ **Netlify** - Requires refactoring to serverless functions
+1. Push to the `main` branch (or trigger the **Deploy to GitHub Pages** workflow manually).
+2. In your repository settings, enable GitHub Pages and choose **GitHub Actions** as the source.
+3. The workflow will build the site, upload the `dist/` folder, and publish it to the `gh-pages` branch using `actions/deploy-pages`.
 
-**Quick deploy to Render:**
-1. Go to https://render.com
-2. Connect your GitHub repository
-3. Add environment variables (see DEPLOYMENT_GUIDE.md)
-4. Deploy!
+The workflow sets `VITE_BASE_PATH` to `/<repository-name>/` so the app works when served from `https://<user>.github.io/<repository-name>/`. If you are deploying to a custom domain or a user/organization site (`<user>.github.io`), override that environment variable (e.g., `VITE_BASE_PATH=/`) in the workflow or repository secrets.
+
+Prefer to host elsewhere? Run `npm run build` and serve the static files in the `dist/` directory with any static host (Cloudflare Pages, Netlify, S3, etc.).
 
 ## 📖 How to Use
 
@@ -125,20 +93,6 @@ Click "Calculate Distribution" to see:
 
 Use the bill breakdown to count out exact cash for each partner.
 
-## 🔧 Testing OCR
-
-Test the OCR functionality with sample images:
-
-```bash
-npm run test:ocr
-```
-
-This will process all images in `attached_assets/` and show:
-- Processing time
-- Partners extracted
-- Confidence scores
-- Detailed results
-
 ## 📁 Project Structure
 
 ```
@@ -146,57 +100,41 @@ projectTipjar/
 ├── client/                  # Frontend React application
 │   ├── src/
 │   │   ├── components/     # React components
-│   │   ├── pages/          # Page components
-│   │   ├── lib/            # Utilities and helpers
-│   │   └── context/        # React context providers
+│   │   ├── context/        # React context providers
+│   │   ├── lib/            # Client-side helpers (ocrClient, distribution, persistence)
+│   │   └── pages/          # Page components
 │   └── index.html
 │
-├── server/                 # Backend Express application
-│   ├── api/
-│   │   ├── ocr.ts         # Tesseract OCR implementation
-│   │   └── gemini.ts      # [DEPRECATED] Old Gemini implementation
-│   ├── lib/
-│   │   ├── imagePreprocessor.ts  # Image enhancement
-│   │   ├── tableParser.ts        # Report parsing logic
-│   │   └── ocrConfig.ts          # Tesseract configuration
-│   ├── routes.ts          # API routes
-│   ├── storage.ts         # Database layer
-│   └── index.ts           # Server entry point
+├── shared/                # Shared logic used by both client and legacy server
+│   ├── ocrParser.ts       # Starbucks OCR parsing rules
+│   └── schema.ts          # Shared types
 │
-├── shared/                # Shared types and schemas
-│   └── schema.ts
+├── .github/workflows/     # GitHub Actions pipelines
+│   └── deploy.yml         # Builds + deploys to GitHub Pages
 │
-└── OCR_IMPLEMENTATION.md  # Detailed OCR documentation
+├── server/                # Legacy Express utilities (not required for GitHub Pages build)
+│   └── ...
+│
+└── *.md                   # Additional documentation and migration notes
 ```
 
 ## 🛠️ Technology Stack
 
 **Frontend:**
-- React 19
-- TypeScript
-- Tailwind CSS
-- Wouter (routing)
-- React Query
-- Radix UI components
+- React 19 + TypeScript
+- Vite + Tailwind CSS
+- Wouter (routing) & Radix UI components
+- Tesseract.js for in-browser OCR
+- Local storage for persistence
 
-**Backend:**
-- Node.js
-- Express
-- TypeScript
-- Azure AI Document Intelligence (OCR - primary)
-- Tesseract.js (OCR - fallback)
-- Sharp (image processing)
-- Drizzle ORM
-- PostgreSQL (optional)
+**Legacy utilities (optional):**
+- The `server/` folder contains the previous Express implementation and Azure integrations for reference. They are not required when deploying to GitHub Pages.
 
 ## 🔐 Privacy & Security
 
-- **No AI Training** - Azure Document Intelligence does NOT train on your data
-- **24-Hour Deletion** - Azure retains images for processing only, deleted after 24 hours
-- **Tesseract Fallback** - 100% on-premises processing available
-- **Enterprise Grade** - SOC 2, GDPR, and HIPAA compliant
-- **Starbucks Compatible** - Uses same Azure infrastructure as Starbucks POS
-- **Partner Privacy** - Meets Starbucks privacy requirements
+- **Local-Only Processing** – Images never leave the browser; OCR runs with Tesseract.js on the client.
+- **Persistent Storage Control** – Partner rosters and history live in `localStorage`; clear your browser data to reset.
+- **Optional Legacy Integrations** – Azure Document Intelligence helpers remain in the `server/` folder for teams that still need them, but they are not required for GitHub Pages deployments.
 
 ## 📝 Scripts
 
@@ -206,16 +144,10 @@ npm run dev              # Start dev server with hot reload
 
 # Production
 npm run build            # Build for production
-npm run start            # Start production server
-
-# Testing
-npm run test:ocr         # Test OCR with sample images
+npm run preview          # Preview the production build locally
 
 # Type Checking
 npm run check            # Run TypeScript type checking
-
-# Database
-npm run db:push          # Push database schema changes
 ```
 
 ## 🐛 Troubleshooting
@@ -225,7 +157,7 @@ npm run db:push          # Push database schema changes
 1. Check image quality - ensure good lighting and focus
 2. Make sure image shows the complete report table
 3. Try manual entry as fallback
-4. Run `npm run test:ocr` to diagnose issues
+4. Copy the extracted text shown in the app to verify what the OCR engine detected.
 
 ### Low OCR Accuracy
 
@@ -240,26 +172,16 @@ npm run db:push          # Push database schema changes
 ```bash
 # Clear node_modules and reinstall
 rm -rf node_modules package-lock.json
-npm install --legacy-peer-deps
+npm install
 ```
 
 ## 📊 Performance
 
-**Azure Document Intelligence:**
-- **Processing Time:** 1-3 seconds per image
-- **Accuracy:** 95-98% on Starbucks reports
-- **Confidence:** ~95% typical
-- **Free Tier:** 500 pages/month
-
-**Tesseract (Fallback):**
-- **First Request:** 4-5 seconds (initializes worker)
-- **Subsequent Requests:** 2-3 seconds
-- **Accuracy:** 70-85% on phone photos
-- **Confidence Threshold:** 30% minimum
-
-**General:**
-- **Supported Image Sizes:** Up to 10MB
-- **Supported Formats:** JPG, PNG, WebP
+- **First OCR Run:** ~5 seconds while the browser downloads and initializes the Tesseract worker.
+- **Subsequent Runs:** 2-3 seconds for similarly sized photos (the worker stays warm).
+- **Image Guidance:** sharp, well-lit photos with the full table in frame yield the best results.
+- **Supported Image Sizes:** Up to ~10MB (browser memory permitting).
+- **Supported Formats:** JPG, PNG, WebP.
 
 ## 🤝 Contributing
 
