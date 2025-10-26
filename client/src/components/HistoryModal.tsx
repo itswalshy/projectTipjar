@@ -1,14 +1,12 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog";
-import { Distribution } from "@shared/schema";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { UsersIcon } from "lucide-react";
+import { useTipContext } from "@/context/TipContext";
 
 type HistoryModalProps = {
   isOpen: boolean;
@@ -16,10 +14,10 @@ type HistoryModalProps = {
 };
 
 export default function HistoryModal({ isOpen, onClose }: HistoryModalProps) {
-  const { data: distributions, isLoading } = useQuery<Distribution[]>({
-    queryKey: ['/api/distributions'],
-    enabled: isOpen,
-  });
+  const { distributionHistory, isStorageReady } = useTipContext();
+
+  const distributions = distributionHistory;
+  const isLoading = !isStorageReady;
   
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

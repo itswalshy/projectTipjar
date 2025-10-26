@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useTipContext } from "@/context/TipContext";
-import { readFileAsDataURL } from "@/lib/utils";
+import { extractReportData, OCRProcessingError } from "@/lib/ocrClient";
 import {
   UploadCloudIcon,
   Loader2Icon,
@@ -22,6 +22,8 @@ export default function FileDropzone() {
   const [state, setState] = useState<DropzoneState>(DropzoneState.IDLE);
   const [fileName, setFileName] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [progressMessage, setProgressMessage] = useState<string | null>(null);
+  const [progressPercent, setProgressPercent] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { toast } = useToast();
@@ -65,37 +67,23 @@ export default function FileDropzone() {
     setState(DropzoneState.PROCESSING);
     setFileName(file.name);
     setErrorMessage(null);
-    
+    setProgressMessage(null);
+    setProgressPercent(null);
+
     try {
-      const dataUrl = await readFileAsDataURL(file);
-      
-      // Send the image to the server for OCR processing
-      const formData = new FormData();
-      formData.append('image', file);
-      
-      const response = await fetch('/api/ocr', {
-        method: 'POST',
-        body: formData,
+      const result = await extractReportData(file, (message, percent) => {
+        setProgressMessage(message);
+        setProgressPercent(percent ?? null);
       });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        // Extract specific error message from the server response
-        const errorMsg = result.error || 'OCR processing failed';
-        setErrorMessage(errorMsg);
-        throw new Error(errorMsg);
-      }
-      
-      // Always set the extracted text if available to show everything OCR found
+
       if (result.extractedText) {
         setExtractedText(result.extractedText);
       }
-      
+
       if (result.partnerHours && result.partnerHours.length > 0) {
         setPartnerHours(result.partnerHours);
         setState(DropzoneState.SUCCESS);
-        
+
         setTimeout(() => {
           setState(DropzoneState.IDLE);
         }, 3000);
@@ -118,11 +106,20 @@ export default function FileDropzone() {
     } catch (error: any) {
       console.error(error);
       setState(DropzoneState.ERROR);
-      
-      // If we have a specific error message from the API, use it
-      // Otherwise use a generic message
-      const errorMsg = errorMessage || "Failed to extract partner information from the report";
-      
+
+      if (error instanceof OCRProcessingError && error.extractedText) {
+        setExtractedText(error.extractedText);
+      }
+
+      const errorMsg =
+        error instanceof OCRProcessingError
+          ? error.message
+          : errorMessage || "Failed to extract partner information from the report";
+
+      setErrorMessage(errorMsg);
+      setProgressMessage(null);
+      setProgressPercent(null);
+
       toast({
         title: "Processing failed",
         description: errorMsg,
@@ -157,7 +154,12 @@ export default function FileDropzone() {
                 <Loader2Icon className="h-full w-full animate-spin" />
               </div>
             </div>
-            <p className="text-[#f5f5f5] m-0 mb-2 text-sm sm:text-base font-medium">Processing report...</p>
+            <p className="text-[#f5f5f5] m-0 mb-2 text-sm sm:text-base font-medium">
+              {progressMessage || "Processing report..."}
+            </p>
+            {typeof progressPercent === 'number' && (
+              <p className="text-[#9fd6e9] text-xs mb-2">{progressPercent}% complete</p>
+            )}
             <div className="w-48 h-2 bg-[#364949] rounded-full overflow-hidden mt-2">
               <div className="h-full bg-[#9fd6e9] shimmer"></div>
             </div>

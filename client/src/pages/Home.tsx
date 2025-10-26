@@ -3,9 +3,9 @@ import { useToast } from "@/hooks/use-toast";
 import FileDropzone from "@/components/FileDropzone";
 import ResultsSummaryCard from "@/components/ResultsSummaryCard";
 import PartnerPayoutsList from "@/components/PartnerPayoutsList";
+import AppTabs from "@/components/AppTabs";
 import { useTipContext } from "@/context/TipContext";
-import { apiRequest } from "@/lib/queryClient";
-import { calculateHourlyRate } from "@/lib/utils";
+import { calculateDistribution } from "@/lib/distribution";
 
 export default function Home() {
   const [tipAmount, setTipAmount] = useState<number | ''>('');
@@ -15,7 +15,8 @@ export default function Home() {
   const { 
     partnerHours, 
     distributionData, 
-    setDistributionData
+    setDistributionData,
+    recordDistribution
   } = useTipContext();
 
   const handleCalculate = async () => {
@@ -40,22 +41,12 @@ export default function Home() {
     setIsCalculating(true);
     
     try {
-      const totalHours = partnerHours.reduce((sum, partner) => sum + partner.hours, 0);
-      const hourlyRate = calculateHourlyRate(Number(tipAmount), totalHours);
-      
-      const res = await apiRequest(
-        "POST", 
-        "/api/distributions/calculate", 
-        {
-          partnerHours,
-          totalAmount: Number(tipAmount),
-          totalHours,
-          hourlyRate
-        }
-      );
-      
-      const calculatedData = await res.json();
+      const calculatedData = calculateDistribution({
+        partnerHours,
+        totalAmount: Number(tipAmount),
+      });
       setDistributionData(calculatedData);
+      recordDistribution(calculatedData);
       
       toast({
         title: "Distribution calculated",
@@ -75,6 +66,7 @@ export default function Home() {
 
   return (
     <main className="px-2 sm:px-4 max-w-full overflow-hidden">
+      <AppTabs />
       <div className="mt-4 sm:mt-6 md:mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Left Column - Input Section */}
         <div className="md:col-span-1">
